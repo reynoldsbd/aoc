@@ -5,3 +5,11 @@ authors = ["Bobby Reynolds <bobby@reynoldsbd.net>"]
 edition = "2018"
 
 [dependencies]
+
+[[bin]]
+name = "_crate_part1"
+path = "src/part1.rs"
+
+[[bin]]
+name = "_crate_part2"
+path = "src/part2.rs"

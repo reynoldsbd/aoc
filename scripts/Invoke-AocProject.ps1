@@ -37,6 +37,8 @@ param(
     $Part = "part1"
 )
 
+$ErrorActionPreference = "Stop"
+
 . (Join-Path $PSScriptRoot Common.ps1)
 
 if (!$Year) {
@@ -47,8 +49,6 @@ if (!$Day) {
     $Day = $CurrentDay
 }
 
-$challengeDir = getChallengeDir $Year $Day
+$crateName = getCrateName $Year $Day
 
-Push-Location $challengeDir
-cargo run --bin $Part
-Pop-Location
+cargo run --bin "${crateName}_${Part}"

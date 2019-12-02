@@ -31,6 +31,8 @@ param(
     $Day
 )
 
+$ErrorActionPreference = "Stop"
+
 . (Join-Path $PSScriptRoot Common.ps1)
 
 if ($Next) {
@@ -73,5 +75,5 @@ function setCrateName($file) {
 }
 
 setCrateName $challengeDir/Cargo.toml
-setCrateName $challengeDir/src/bin/part1.rs
-setCrateName $challengeDir/src/bin/part2.rs
+setCrateName $challengeDir/src/part1.rs
+setCrateName $challengeDir/src/part2.rs

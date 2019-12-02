@@ -1,4 +1,4 @@
 [workspace]
 members = [
-    "2019/*"
+    "20*/*"
 ]

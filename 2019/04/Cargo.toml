@@ -1,0 +1,15 @@
+[package]
+name = "aoc_2019_04"
+version = "0.1.0"
+authors = ["Bobby Reynolds <bobby@reynoldsbd.net>"]
+edition = "2018"
+
+[dependencies]
+
+[[bin]]
+name = "aoc_2019_04_part1"
+path = "src/part1.rs"
+
+[[bin]]
+name = "aoc_2019_04_part2"
+path = "src/part2.rs"

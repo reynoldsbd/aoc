@@ -182,5 +182,45 @@ mod test {
         ]);
     }
 
+    #[test]
+    fn day2_part1_case4() {
+
+        let mut prog = [
+            2,4,4,5,
+            99,
+            0,
+        ];
+
+        Computer::new()
+            .eval(&mut prog)
+            .unwrap();
+
+        assert_eq!(prog, [
+            2,4,4,5,
+            99,
+            9801,
+        ]);
+    }
+
+    #[test]
+    fn day2_part1_case5() {
+
+        let mut prog = [
+            1,1,1,4,
+            99,
+            5,6,0,99,
+        ];
+
+        Computer::new()
+            .eval(&mut prog)
+            .unwrap();
+
+        assert_eq!(prog, [
+            30,1,1,4,
+            2,5,6,0,
+            99,
+        ]);
+    }
+
     // TODO: port remaining unit tests
 }

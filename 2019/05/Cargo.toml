@@ -5,6 +5,7 @@ authors = ["Bobby Reynolds <bobby@reynoldsbd.net>"]
 edition = "2018"
 
 [dependencies]
+intcode = { path = "../intcode" }
 
 [[bin]]
 name = "aoc_2019_05_part1"
@@ -13,4 +14,3 @@ path = "src/part1.rs"
 [[bin]]
 name = "aoc_2019_05_part2"
 path = "src/part2.rs"
-

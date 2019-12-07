@@ -160,6 +160,60 @@ where H: IoHandler
         Ok(())
     }
 
+    fn jump_if_true(&mut self) -> Result<(), Error> {
+
+        let val = self.load_param(0)?;
+
+        if val != 0 {
+            self.ip = self.load_param(1)?
+                .try_into()
+                .map_err(|_| Error::Address)?;
+        } else {
+            self.ip += 3;
+        }
+
+        Ok(())
+    }
+
+    fn jump_if_false(&mut self) -> Result<(), Error> {
+
+        let val = self.load_param(0)?;
+
+        if val == 0 {
+            self.ip = self.load_param(1)?
+                .try_into()
+                .map_err(|_| Error::Address)?;
+        } else {
+            self.ip += 3;
+        }
+
+        Ok(())
+    }
+
+    fn less_than(&mut self) -> Result<(), Error> {
+
+        let lhs = self.load_param(0)?;
+        let rhs = self.load_param(1)?;
+
+        self.store_by_param(2, if lhs < rhs { 1 } else { 0 })?;
+
+        self.ip += 4;
+
+        Ok(())
+    }
+
+    fn equals(&mut self) -> Result<(), Error> {
+
+        let lhs = self.load_param(0)?;
+        let rhs = self.load_param(1)?;
+
+        self.store_by_param(2, if lhs == rhs { 1 } else { 0 })?;
+
+        self.ip += 4;
+
+        Ok(())
+    }
+
     fn cycle(&mut self) -> Result<bool, Error> {
 
         match self.decode_op() {
@@ -167,6 +221,10 @@ where H: IoHandler
             2  => self.mul()?,
             3  => self.input()?,
             4  => self.output()?,
+            5  => self.jump_if_true()?,
+            6  => self.jump_if_false()?,
+            7  => self.less_than()?,
+            8  => self.equals()?,
             99 => return Ok(false),
             _  => return Err(Error::Opcode),
         }
@@ -438,6 +496,8 @@ mod test {
         ]);
     }
 
+    // TODO: port remaining day5 unit tests
+
     // #[test]
     // fn day5_part2_case1() {
 
@@ -445,6 +505,4 @@ mod test {
     //         3,9,8,9,10,9,4,9,99,-1,8
     //     ];
     // }
-
-    // TODO: port remaining day5 unit tests
 }

@@ -1,6 +1,8 @@
 use std::io::{self, BufRead};
 use std::convert::TryFrom;
 
+use intcode;
+
 enum Operation {
     Add,
     Multiply,
@@ -198,7 +200,8 @@ pub fn part1() {
 
     ];
 
-    eval(&mut prog);
+    intcode::eval(&mut prog)
+        .unwrap();
 
     // println!("{}", param_is_immediate(1001, 1));
 }

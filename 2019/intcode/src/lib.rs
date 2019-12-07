@@ -1,6 +1,7 @@
 //! Implementation of the intcode computer for AoC 2019
 
 use std::convert::TryInto;
+use std::io;
 use std::num::ParseIntError;
 
 
@@ -19,17 +20,57 @@ pub enum Error {
 }
 
 
+/// Defines how to handle I/O operations
+pub trait IoHandler {
+
+    /// Retrieves a single integer as input
+    fn input(&mut self) -> isize;
+
+    /// Outputs a single integer
+    fn output(&mut self, val: isize);
+}
+
+
+/// Default I/O handler
+pub struct DefaultIoHandler;
+
+impl IoHandler for DefaultIoHandler {
+
+    fn input(&mut self) -> isize {
+
+        let mut input = String::new();
+
+        io::stdin().read_line(&mut input)
+            .expect("failed to read input");
+
+        input.trim()
+            .parse()
+            .expect("failed to parse input")
+    }
+
+    fn output(&mut self, val: isize) {
+
+        println!("{}", val);
+    }
+}
+
+
 /// Tracks state of an executing CPU
-struct Cpu<'a> {
+struct Cpu<'a, H> {
 
     /// Instruction pointer
     ip: usize,
 
     /// Main memory
     mem: &'a mut [isize],
+
+    /// I/O handler
+    io: &'a mut H,
 }
 
-impl<'a> Cpu<'a> {
+impl<'a, H> Cpu<'a, H>
+where H: IoHandler
+{
 
     fn decode_op(&self) -> isize {
 
@@ -43,9 +84,19 @@ impl<'a> Cpu<'a> {
 
     fn load_param(&self, param_idx: usize) -> Result<isize, Error> {
 
-        let param_addr: usize = self.mem[self.ip + 1 + param_idx]
-            .try_into()
-            .map_err(|_| Error::Address)?;
+        let is_immediate = {
+            let op = format!("{:0>10}", self.mem[self.ip]);
+            let flag_idx = op.len() - 3 - param_idx;
+            &op[flag_idx..(flag_idx + 1)] == "1"
+        };
+
+        let param_addr: usize = if is_immediate {
+            self.ip + 1 + param_idx
+        } else {
+            self.mem[self.ip + 1 + param_idx]
+                .try_into()
+                .map_err(|_| Error::Address)?
+        };
 
         Ok(self.mem[param_addr])
     }
@@ -89,11 +140,33 @@ impl<'a> Cpu<'a> {
         Ok(())
     }
 
+    fn input(&mut self) -> Result<(), Error> {
+
+        let val = self.io.input();
+        self.store_by_param(0, val)?;
+
+        self.ip += 2;
+
+        Ok(())
+    }
+
+    fn output(&mut self) -> Result<(), Error> {
+
+        let val = self.load_param(0)?;
+        self.io.output(val);
+
+        self.ip += 2;
+
+        Ok(())
+    }
+
     fn cycle(&mut self) -> Result<bool, Error> {
 
         match self.decode_op() {
             1  => self.add()?,
             2  => self.mul()?,
+            3  => self.input()?,
+            4  => self.output()?,
             99 => return Ok(false),
             _  => return Err(Error::Opcode),
         }
@@ -104,17 +177,25 @@ impl<'a> Cpu<'a> {
 
 
 /// A computer capable of executing Intcode programs
-pub struct Computer();
+pub struct Computer<H> {
 
-impl Computer {
+    /// I/O handler used by this computer
+    io: H,
+}
 
-    pub fn new() -> Self {
-        Self()
+impl<H> Computer<H>
+where H: IoHandler
+{
+
+    pub fn new(io: H) -> Self {
+        Self {
+            io,
+        }
     }
 
-    pub fn eval(&self, mem: &mut [isize]) -> Result<(), Error> {
+    pub fn eval(&mut self, mem: &mut [isize]) -> Result<(), Error> {
 
-        let mut cpu = Cpu { ip: 0, mem };
+        let mut cpu = Cpu { ip: 0, mem, io: &mut self.io };
 
         while cpu.cycle()? { }
 
@@ -132,6 +213,13 @@ pub fn parse_prog(prog: &str) -> Result<Vec<isize>, ParseIntError> {
 }
 
 
+pub fn eval(prog: &mut [isize]) -> Result<(), Error> {
+
+    Computer::new(DefaultIoHandler)
+        .eval(prog)
+}
+
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -146,8 +234,7 @@ mod test {
             30,40,50,
         ];
 
-        Computer::new()
-            .eval(&mut prog)
+        eval(&mut prog)
             .unwrap();
 
         assert_eq!(prog, [
@@ -166,8 +253,7 @@ mod test {
             99,
         ];
 
-        Computer::new()
-            .eval(&mut prog)
+        eval(&mut prog)
             .unwrap();
 
         assert_eq!(prog, [
@@ -184,8 +270,7 @@ mod test {
             99,
         ];
 
-        Computer::new()
-            .eval(&mut prog)
+        eval(&mut prog)
             .unwrap();
 
         assert_eq!(prog, [
@@ -203,8 +288,7 @@ mod test {
             0,
         ];
 
-        Computer::new()
-            .eval(&mut prog)
+        eval(&mut prog)
             .unwrap();
 
         assert_eq!(prog, [
@@ -223,8 +307,7 @@ mod test {
             5,6,0,99,
         ];
 
-        Computer::new()
-            .eval(&mut prog)
+        eval(&mut prog)
             .unwrap();
 
         assert_eq!(prog, [
@@ -246,8 +329,7 @@ mod test {
         prog[1] = 12;
         prog[2] = 2;
 
-        Computer::new()
-            .eval(&mut prog)
+        eval(&mut prog)
             .unwrap();
 
         assert_eq!(prog[0], 10566835);
@@ -270,8 +352,7 @@ mod test {
                 prog[1] = i;
                 prog[2] = j;
 
-                Computer::new()
-                    .eval(&mut prog)
+                eval(&mut prog)
                     .unwrap();
 
                 if prog[0] == 19690720 {
@@ -284,5 +365,86 @@ mod test {
         assert_eq!(res, Some(2347));
     }
 
-    // TODO: port remaining unit tests
+    #[test]
+    fn day5_part1_case1() {
+
+        // Custom handler to test simple I/O
+        struct SimpleHandler<'a> {
+            input: isize,
+            output: &'a mut Vec<isize>,
+        }
+
+        impl<'a> IoHandler for SimpleHandler<'a> {
+            fn input(&mut self) -> isize {
+                self.input
+            }
+            fn output(&mut self, val: isize) {
+                self.output.push(val);
+            }
+        }
+
+        let prog = vec![
+            3,0,
+            4,0,
+            99,
+        ];
+
+        for i in 0..100 {
+
+            let mut output = vec![];
+            let io = SimpleHandler { input: i, output: &mut output };
+
+            let mut prog = prog.clone();
+
+            Computer::new(io)
+                .eval(&mut prog)
+                .unwrap();
+
+            assert_eq!(output, vec![i]);
+        }
+    }
+
+    #[test]
+    fn day5_part1_case2() {
+
+        let mut prog = [
+            1002,4,3,4,
+            33,
+        ];
+
+        eval(&mut prog)
+            .unwrap();
+
+        assert_eq!(prog, [
+            1002,4,3,4,
+            99,
+        ]);
+    }
+
+    #[test]
+    fn day5_part1_case3() {
+
+        let mut prog = [
+            1101,100,-1,4,
+            0,
+        ];
+
+        eval(&mut prog)
+            .unwrap();
+
+        assert_eq!(prog, [
+            1101,100,-1,4,
+            99,
+        ]);
+    }
+
+    // #[test]
+    // fn day5_part2_case1() {
+
+    //     let mut prog = [
+    //         3,9,8,9,10,9,4,9,99,-1,8
+    //     ];
+    // }
+
+    // TODO: port remaining day5 unit tests
 }

@@ -1,4 +1,4 @@
-use intcode::{self, Computer};
+use intcode;
 
 
 const GRAV_PROG: &'static str = include_str!("grav-prog.txt");
@@ -13,8 +13,7 @@ pub fn part1() {
     prog[1] = 12;
     prog[2] = 2;
 
-    Computer::new()
-        .eval(&mut prog)
+    intcode::eval(&mut prog)
         .unwrap();
 
     println!("{}", prog[0]);
@@ -32,8 +31,7 @@ pub fn part2() {
             prog[1] = i;
             prog[2] = j;
 
-            Computer::new()
-                .eval(&mut prog)
+            intcode::eval(&mut prog)
                 .unwrap();
 
             if prog[0] == 19690720 {

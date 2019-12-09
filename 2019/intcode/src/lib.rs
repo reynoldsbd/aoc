@@ -66,6 +66,9 @@ struct Cpu<'a, H> {
 
     /// I/O handler
     io: &'a mut H,
+
+    /// Relative base
+    rb: isize,
 }
 
 impl<'a, H> Cpu<'a, H>
@@ -84,18 +87,18 @@ where H: IoHandler
 
     fn load_param(&self, param_idx: usize) -> Result<isize, Error> {
 
-        let is_immediate = {
-            let op = format!("{:0>10}", self.mem[self.ip]);
-            let flag_idx = op.len() - 3 - param_idx;
-            &op[flag_idx..(flag_idx + 1)] == "1"
-        };
+        let op = format!("{:0>10}", self.mem[self.ip]);
+        let flag_idx = op.len() - 3 - param_idx;
 
-        let param_addr: usize = if is_immediate {
-            self.ip + 1 + param_idx
-        } else {
-            self.mem[self.ip + 1 + param_idx]
+        let param_addr: usize = match &op[flag_idx..(flag_idx + 1)] {
+            "1" => self.ip + 1 + param_idx,
+            "0" => self.mem[self.ip + 1 + param_idx]
                 .try_into()
-                .map_err(|_| Error::Address)?
+                .map_err(|_| Error::Address)?,
+            "2" => (self.rb + self.mem[self.ip + 1 + param_idx])
+                    .try_into()
+                    .map_err(|_| Error::Address)?,
+            _ => panic!("unknown parameter mode"),
         };
 
         Ok(self.mem[param_addr])
@@ -107,11 +110,21 @@ where H: IoHandler
         val: isize,
     ) -> Result<(), Error> {
 
-        let dest_addr: usize = self.mem[self.ip + 1 + param_idx]
-            .try_into()
-            .map_err(|_| Error::Address)?;
+        let op = format!("{:0>10}", self.mem[self.ip]);
+        let flag_idx = op.len() - 3 - param_idx;
 
-        self.mem[dest_addr] = val;
+        let param_addr: usize = match &op[flag_idx..(flag_idx + 1)] {
+            "1" => panic!("immediate mode not supported for writing"),
+            "0" => self.mem[self.ip + 1 + param_idx]
+                .try_into()
+                .map_err(|_| Error::Address)?,
+            "2" => (self.rb + self.mem[self.ip + 1 + param_idx])
+                    .try_into()
+                    .map_err(|_| Error::Address)?,
+            _ => panic!("unknown parameter mode"),
+        };
+
+        self.mem[param_addr] = val;
 
         Ok(())
     }
@@ -214,6 +227,15 @@ where H: IoHandler
         Ok(())
     }
 
+    fn adj_rb(&mut self) -> Result<(), Error> {
+
+        self.rb += self.load_param(0)?;
+
+        self.ip += 2;
+
+        Ok(())
+    }
+
     fn cycle(&mut self) -> Result<bool, Error> {
 
         match self.decode_op() {
@@ -225,6 +247,7 @@ where H: IoHandler
             6  => self.jump_if_false()?,
             7  => self.less_than()?,
             8  => self.equals()?,
+            9  => self.adj_rb()?,
             99 => return Ok(false),
             _  => return Err(Error::Opcode),
         }
@@ -253,7 +276,7 @@ where H: IoHandler
 
     pub fn eval(&mut self, mem: &mut [isize]) -> Result<(), Error> {
 
-        let mut cpu = Cpu { ip: 0, mem, io: &mut self.io };
+        let mut cpu = Cpu { ip: 0, mem, io: &mut self.io, rb: 0 };
 
         while cpu.cycle()? { }
 
@@ -265,9 +288,13 @@ where H: IoHandler
 /// Parses a textual representation of an intcode program
 pub fn parse_prog(prog: &str) -> Result<Vec<isize>, ParseIntError> {
 
-    prog.split(",")
-        .map(|i| i.trim().parse())
-        .collect()
+    let mut mem = vec![0; 10_000];
+
+    for (i, val) in prog.split(",").enumerate() {
+        mem[i] = val.trim().parse()?;
+    }
+
+    Ok(mem)
 }
 
 

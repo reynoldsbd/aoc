@@ -309,6 +309,15 @@ pub fn eval(prog: &mut [isize]) -> Result<(), Error> {
 mod test {
     use super::*;
 
+    struct TestHandler<'a>(isize, &'a mut Vec<isize>);
+
+    impl<'a> IoHandler for TestHandler<'a> {
+
+        fn input(&mut self) -> isize { self.0 }
+
+        fn output(&mut self, val: isize) { self.1.push(val) }
+    }
+
     #[test]
     fn day2_part1_case1() {
 
@@ -523,13 +532,54 @@ mod test {
         ]);
     }
 
+    const TEST_PROG: &'static str = include_str!("test-prog.txt");
+
+    #[test]
+    fn day5_part1_sln() {
+
+        let mut prog = parse_prog(TEST_PROG)
+            .unwrap();
+        let mut output = vec![];
+
+        Computer::new(TestHandler(1, &mut output))
+            .eval(&mut prog)
+            .unwrap();
+
+        for (i, val) in output.iter().enumerate() {
+            if i == output.len() - 1 {
+                assert_eq!(*val, 15259545);
+            } else {
+                assert_eq!(*val, 0);
+            }
+        }
+    }
+
+    #[test]
+    fn day5_part2_case1() {
+
+        for i in 0..20 {
+
+            let mut prog = [
+                3,9,
+                8,9,10,9,
+                4,9,
+                99,
+                -1,8,
+            ];
+
+            let mut output = vec![];
+
+            Computer::new(TestHandler(i, &mut output))
+                .eval(&mut prog)
+                .unwrap();
+
+            if i == 8 {
+                assert_eq!(output, vec![1]);
+            } else {
+                assert_eq!(output, vec![0]);
+            }
+        }
+    }
+
     // TODO: port remaining day5 unit tests
-
-    // #[test]
-    // fn day5_part2_case1() {
-
-    //     let mut prog = [
-    //         3,9,8,9,10,9,4,9,99,-1,8
-    //     ];
-    // }
 }
